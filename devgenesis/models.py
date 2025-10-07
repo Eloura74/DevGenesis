@@ -1,12 +1,13 @@
-"""Database models for DevGenesis"""
+"""Database models for DevGenesis."""
 
+import json
 from datetime import datetime
-from typing import Optional, List, Dict, Any
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from pydantic import BaseModel, Field
-import json
 
 from devgenesis.config import DATABASE_PATH
 
@@ -104,6 +105,7 @@ class ProjectConfig(BaseModel):
     commands: List[str] = Field(default_factory=list)  # Commands to run after generation
     git_init: bool = True
     create_venv: bool = True
+    run_commands: bool = True
 
 
 # Database initialization
