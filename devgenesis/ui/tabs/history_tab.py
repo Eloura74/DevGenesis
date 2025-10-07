@@ -1,11 +1,22 @@
 """History tab widget"""
 
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QPushButton, QListWidget, QListWidgetItem, QMessageBox
-)
+import shutil
+
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
 from devgenesis.database import DatabaseService
+from devgenesis.logger import LOG_FILE
 
 
 class HistoryTab(QWidget):
@@ -34,6 +45,11 @@ class HistoryTab(QWidget):
         refresh_btn.setObjectName("secondaryButton")
         refresh_btn.clicked.connect(self.load_history)
         btn_layout.addWidget(refresh_btn)
+
+        export_btn = QPushButton("💾 Exporter les logs")
+        export_btn.setObjectName("secondaryButton")
+        export_btn.clicked.connect(self.export_logs)
+        btn_layout.addWidget(export_btn)
 
         clear_btn = QPushButton("🗑️ Effacer l'historique")
         clear_btn.setObjectName("dangerButton")
@@ -70,3 +86,26 @@ class HistoryTab(QWidget):
             self.db.clear_history()
             self.load_history()
             QMessageBox.information(self, "Succès", "L'historique a été effacé")
+
+    def export_logs(self) -> None:
+        """Export the persistent application logs."""
+        if not LOG_FILE.exists():
+            QMessageBox.information(self, "Aucun log", "Aucun fichier de log n'a encore été généré.")
+            return
+
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Exporter les logs",
+            str(LOG_FILE.parent / "devgenesis.log"),
+            "Fichier log (*.log);;Tous les fichiers (*)",
+        )
+
+        if not filename:
+            return
+
+        try:
+            shutil.copy2(LOG_FILE, filename)
+        except OSError as exc:
+            QMessageBox.critical(self, "Export impossible", str(exc))
+        else:
+            QMessageBox.information(self, "Succès", f"Logs exportés vers {filename}")
