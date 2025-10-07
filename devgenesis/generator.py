@@ -1,21 +1,21 @@
-"""Project generator engine for DevGenesis"""
+"""Project generator engine for DevGenesis."""
 
-import os
-import subprocess
-import shutil
-from pathlib import Path
-from typing import Dict, Any, List, Callable, Optional
-from datetime import datetime
 import json
+import os
 import re
+import shlex
+import shutil
+import subprocess
+import tempfile
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional
 
 from jinja2 import Template
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskID
 
-from devgenesis.models import ProjectConfig, FileTemplate, TechnologyConfig
-
-console = Console()
+from devgenesis.logger import get_logger
+from devgenesis.models import FileTemplate, ProjectConfig, TechnologyConfig
 
 
 class ProjectGenerator:
@@ -23,23 +23,69 @@ class ProjectGenerator:
 
     def __init__(self, config: ProjectConfig, progress_callback: Optional[Callable] = None):
         self.config = config
-        self.project_path = Path(config.path)
+        self.destination_path = Path(config.path)
         self.progress_callback = progress_callback
         self.console = Console()
+        self.logger = get_logger("generator")
+        self._workspace_holder: Optional[Path] = None
+        self._workspace_root: Optional[Path] = None
 
     def _log(self, message: str, level: str = "info") -> None:
         """Log a message"""
         if self.progress_callback:
             self.progress_callback(message, level)
-        
+
         if level == "error":
             self.console.print(f"[red]❌ {message}[/red]")
+            self.logger.error(message)
         elif level == "success":
             self.console.print(f"[green]✓ {message}[/green]")
+            self.logger.info(message)
         elif level == "warning":
             self.console.print(f"[yellow]⚠ {message}[/yellow]")
+            self.logger.warning(message)
         else:
             self.console.print(f"[blue]ℹ {message}[/blue]")
+            self.logger.info(message)
+
+    @property
+    def project_path(self) -> Path:
+        """Return the active workspace path."""
+        return self._workspace_root or self.destination_path
+
+    def _prepare_workspace(self) -> None:
+        """Create a temporary workspace to guarantee atomic writes."""
+        parent = self.destination_path.parent
+        parent.mkdir(parents=True, exist_ok=True)
+
+        self._workspace_holder = Path(
+            tempfile.mkdtemp(prefix="devgenesis-", dir=str(parent))
+        )
+        self._workspace_root = self._workspace_holder / self.destination_path.name
+        self._workspace_root.mkdir(parents=True, exist_ok=True)
+
+    def _finalize_workspace(self) -> None:
+        """Move the generated project into its final destination."""
+        if not self._workspace_root:
+            return
+
+        if self.destination_path.exists():
+            shutil.rmtree(self.destination_path)
+
+        shutil.move(str(self._workspace_root), str(self.destination_path))
+
+        if self._workspace_holder and self._workspace_holder.exists():
+            shutil.rmtree(self._workspace_holder, ignore_errors=True)
+
+        self._workspace_root = None
+        self._workspace_holder = None
+
+    def _rollback_workspace(self) -> None:
+        """Clean up a temporary workspace after a failure."""
+        if self._workspace_holder and self._workspace_holder.exists():
+            shutil.rmtree(self._workspace_holder, ignore_errors=True)
+        self._workspace_root = None
+        self._workspace_holder = None
 
     def _to_snake_case(self, text: str) -> str:
         """Convert text to snake_case"""
@@ -119,7 +165,7 @@ class ProjectGenerator:
                 capture_output=True,
                 text=True,
             )
-            
+
             subprocess.run(
                 ["git", "add", "."],
                 cwd=self.project_path,
@@ -127,7 +173,7 @@ class ProjectGenerator:
                 capture_output=True,
                 text=True,
             )
-            
+
             subprocess.run(
                 ["git", "commit", "-m", "Initial commit from DevGenesis"],
                 cwd=self.project_path,
@@ -135,10 +181,10 @@ class ProjectGenerator:
                 capture_output=True,
                 text=True,
             )
-            
+
             self._log("Dépôt Git initialisé", "success")
         except subprocess.CalledProcessError as e:
-            self._log(f"Erreur lors de l'initialisation Git: {e}", "warning")
+            self._log(f"Erreur lors de l'initialisation Git: {e.stderr or e}", "warning")
         except FileNotFoundError:
             self._log("Git n'est pas installé sur ce système", "warning")
 
@@ -172,50 +218,57 @@ class ProjectGenerator:
 
     def _run_commands(self) -> None:
         """Run post-generation commands"""
-        if not self.config.commands:
+        if not self.config.commands or not self.config.run_commands:
             return
-        
+
         self._log("Exécution des commandes d'installation")
-        
+
         for command in self.config.commands:
             self._log(f"Exécution: {command}")
-            
+
             try:
-                # Determine if we should use venv
                 venv_path = self.project_path / "venv"
-                
+
+                resolved_command = command
                 if venv_path.exists() and command.startswith(("pip ", "python ")):
-                    # Use venv Python/pip
-                    if os.name == "nt":  # Windows
+                    if os.name == "nt":
                         python_exe = venv_path / "Scripts" / "python.exe"
                         pip_exe = venv_path / "Scripts" / "pip.exe"
-                    else:  # Unix
+                    else:
                         python_exe = venv_path / "bin" / "python"
                         pip_exe = venv_path / "bin" / "pip"
-                    
+
                     if command.startswith("pip "):
-                        command = command.replace("pip", str(pip_exe), 1)
+                        resolved_command = command.replace("pip", str(pip_exe), 1)
                     elif command.startswith("python "):
-                        command = command.replace("python", str(python_exe), 1)
-                
+                        resolved_command = command.replace("python", str(python_exe), 1)
+
                 result = subprocess.run(
-                    command,
-                    shell=True,
+                    shlex.split(resolved_command),
                     cwd=self.project_path,
+                    check=True,
                     capture_output=True,
                     text=True,
-                    timeout=300,  # 5 minutes timeout
+                    timeout=300,
                 )
-                
-                if result.returncode == 0:
-                    self._log(f"Commande réussie: {command}", "success")
-                else:
-                    self._log(f"Erreur dans la commande: {result.stderr}", "warning")
-                    
+
+                for line in result.stdout.splitlines():
+                    if line.strip():
+                        self._log(line.strip(), "info")
+
+                self._log(f"Commande réussie: {command}", "success")
+
+            except subprocess.CalledProcessError as exc:
+                stderr = exc.stderr.strip() if exc.stderr else str(exc)
+                if stderr:
+                    self._log(stderr, "error")
+                return
             except subprocess.TimeoutExpired:
-                self._log(f"Timeout pour la commande: {command}", "warning")
+                self._log(f"Timeout pour la commande: {command}", "error")
+                return
             except Exception as e:
-                self._log(f"Erreur lors de l'exécution: {e}", "warning")
+                self._log(f"Erreur lors de l'exécution: {e}", "error")
+                return
 
     def _create_summary_file(self) -> None:
         """Create a project summary file"""
@@ -243,16 +296,18 @@ class ProjectGenerator:
             self._log(f"🚀 Génération du projet: {self.config.name}")
             
             # Check if directory already exists
-            if self.project_path.exists() and any(self.project_path.iterdir()):
+            if self.destination_path.exists() and any(self.destination_path.iterdir()):
                 self._log(
-                    f"Le répertoire {self.project_path} existe déjà et n'est pas vide",
+                    f"Le répertoire {self.destination_path} existe déjà et n'est pas vide",
                     "error"
                 )
                 return False
-            
+
+            self._prepare_workspace()
+
             # Step 1: Create directory structure
             self._create_directory_structure()
-            
+
             # Step 2: Create files
             self._create_files()
             
@@ -261,21 +316,23 @@ class ProjectGenerator:
             
             # Step 4: Create virtual environment
             self._create_virtual_environment()
-            
+
             # Step 5: Run installation commands
             self._run_commands()
-            
+
             # Step 6: Create summary file
             self._create_summary_file()
-            
+
             self._log(
-                f"✅ Projet généré avec succès dans {self.project_path}",
+                f"✅ Projet généré avec succès dans {self.destination_path}",
                 "success"
             )
+            self._finalize_workspace()
             return True
-            
+
         except Exception as e:
             self._log(f"Erreur lors de la génération: {e}", "error")
+            self._rollback_workspace()
             return False
 
     def validate_config(self) -> tuple[bool, List[str]]:
@@ -295,14 +352,67 @@ class ProjectGenerator:
             errors.append("Au moins une technologie doit être sélectionnée")
         
         # Check if path is writable
-        try:
-            parent_path = Path(self.config.path).parent
-            if not parent_path.exists():
-                parent_path.mkdir(parents=True, exist_ok=True)
-        except Exception as e:
-            errors.append(f"Impossible de créer le répertoire: {e}")
-        
+        parent_path = Path(self.config.path).parent
+        if not parent_path.exists():
+            errors.append("Le dossier parent n'existe pas")
+        else:
+            if not os.access(parent_path, os.W_OK):
+                errors.append("Le dossier n'est pas accessible en écriture")
+            else:
+                try:
+                    free_space = shutil.disk_usage(parent_path).free
+                    if free_space < 50 * 1024 * 1024:
+                        errors.append("Espace disque insuffisant pour la génération")
+                except OSError as exc:
+                    errors.append(f"Impossible de vérifier l'espace disque: {exc}")
+
         return len(errors) == 0, errors
+
+    def build_preview(self) -> Dict[str, Any]:
+        """Return a dry-run preview of the generation plan."""
+        context = {
+            "project_name": self.config.name,
+            "project_name_snake": self._to_snake_case(self.config.name),
+            "description": self.config.description or "",
+            "author": os.environ.get("USER", "DevGenesis User"),
+            "year": datetime.now().year,
+        }
+
+        directories: List[str] = []
+        for directory in self.config.structure:
+            directories.append(self._render_template(directory, context))
+
+        files: List[Dict[str, Any]] = []
+        readme_preview: Optional[str] = None
+        gitignore_preview: Optional[str] = None
+        for file_template in self.config.files:
+            file_path = self._render_template(file_template.path, context)
+            content = (
+                self._render_template(file_template.content, context)
+                if file_template.is_template
+                else file_template.content
+            )
+            files.append({"path": file_path, "preview": content[:400]})
+            if file_path.lower().endswith("readme.md"):
+                readme_preview = content
+            if Path(file_path).name == ".gitignore":
+                gitignore_preview = content
+
+        commands: List[str] = []
+        if self.config.git_init:
+            commands.append("git init")
+        if self.config.create_venv:
+            commands.append("python -m venv venv")
+        if self.config.run_commands:
+            commands.extend(self.config.commands)
+
+        return {
+            "directories": directories,
+            "files": files,
+            "commands": commands,
+            "readme": readme_preview,
+            "gitignore": gitignore_preview,
+        }
 
 
 def generate_project_from_template(
@@ -311,6 +421,10 @@ def generate_project_from_template(
     project_path: str,
     description: Optional[str] = None,
     progress_callback: Optional[Callable] = None,
+    git_init: bool = True,
+    create_venv: bool = True,
+    install_deps: bool = True,
+    dry_run: bool = False,
 ) -> bool:
     """Generate a project from a template dictionary"""
     
@@ -341,19 +455,75 @@ def generate_project_from_template(
         structure=template["structure"],
         files=files,
         commands=template.get("commands", []),
-        git_init=True,
-        create_venv="Python" in [tech.name for tech in technologies],
+        git_init=git_init,
+        create_venv=create_venv,
+        run_commands=install_deps,
     )
-    
+
     # Validate configuration
     generator = ProjectGenerator(config, progress_callback)
     is_valid, errors = generator.validate_config()
-    
+
     if not is_valid:
         if progress_callback:
             for error in errors:
                 progress_callback(error, "error")
         return False
-    
+
+    if dry_run:
+        preview = generator.build_preview()
+        if progress_callback:
+            progress_callback(json.dumps(preview, ensure_ascii=False, indent=2), "info")
+        return True
+
     # Generate project
     return generator.generate()
+
+
+def preview_project_from_template(
+    template: Dict[str, Any],
+    project_name: str,
+    project_path: str,
+    description: Optional[str] = None,
+    git_init: bool = True,
+    create_venv: bool = True,
+    install_deps: bool = True,
+) -> Dict[str, Any]:
+    """Return a dry-run plan for the requested generation."""
+
+    technologies = [
+        TechnologyConfig(
+            name=tech["name"],
+            version=tech.get("version"),
+        )
+        for tech in template["technologies"]
+    ]
+
+    files = [
+        FileTemplate(
+            path=file["path"],
+            content=file["content"],
+            is_template=file.get("is_template", False),
+        )
+        for file in template["files"]
+    ]
+
+    config = ProjectConfig(
+        name=project_name,
+        description=description or template["description"],
+        project_type=template["project_type"],
+        path=project_path,
+        technologies=technologies,
+        structure=template["structure"],
+        files=files,
+        commands=template.get("commands", []),
+        git_init=git_init,
+        create_venv=create_venv,
+        run_commands=install_deps,
+    )
+
+    generator = ProjectGenerator(config)
+    is_valid, errors = generator.validate_config()
+    if not is_valid:
+        raise ValueError("; ".join(errors))
+    return generator.build_preview()
