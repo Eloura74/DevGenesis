@@ -13,10 +13,13 @@ from PySide6.QtWidgets import (
     QPushButton,
     QVBoxLayout,
     QWidget,
+    QStyle,
 )
 
 from devgenesis.database import DatabaseService
+from devgenesis.generator import preview_project_from_template
 from devgenesis.logger import LOG_FILE
+from devgenesis.ui.dialogs.preview_dialog import PreviewDialog
 
 
 class HistoryTab(QWidget):
@@ -41,18 +44,27 @@ class HistoryTab(QWidget):
 
         # Buttons
         btn_layout = QHBoxLayout()
-        refresh_btn = QPushButton("🔄 Actualiser")
+        refresh_btn = QPushButton("Actualiser")
         refresh_btn.setObjectName("secondaryButton")
+        refresh_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload))
         refresh_btn.clicked.connect(self.load_history)
         btn_layout.addWidget(refresh_btn)
 
-        export_btn = QPushButton("💾 Exporter les logs")
+        preview_btn = QPushButton("Aperçu")
+        preview_btn.setObjectName("secondaryButton")
+        preview_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogInfoView))
+        preview_btn.clicked.connect(self.preview_selection)
+        btn_layout.addWidget(preview_btn)
+
+        export_btn = QPushButton("Exporter les logs")
         export_btn.setObjectName("secondaryButton")
+        export_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton))
         export_btn.clicked.connect(self.export_logs)
         btn_layout.addWidget(export_btn)
 
-        clear_btn = QPushButton("🗑️ Effacer l'historique")
+        clear_btn = QPushButton("Effacer l'historique")
         clear_btn.setObjectName("dangerButton")
+        clear_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TrashIcon))
         clear_btn.clicked.connect(self.clear_history)
         btn_layout.addWidget(clear_btn)
 
@@ -109,3 +121,33 @@ class HistoryTab(QWidget):
             QMessageBox.critical(self, "Export impossible", str(exc))
         else:
             QMessageBox.information(self, "Succès", f"Logs exportés vers {filename}")
+
+    def preview_selection(self) -> None:
+        """Open a dry-run preview based on the selected history entry."""
+        item = self.history_list.currentItem()
+        if not item:
+            QMessageBox.information(self, "Aucun élément", "Sélectionnez un projet dans l'historique pour l'aperçu.")
+            return
+
+        data = item.data(Qt.ItemDataRole.UserRole)
+        if not data or not data.get("template_name"):
+            QMessageBox.warning(self, "Template manquant", "Impossible de retrouver le template associé.")
+            return
+
+        template = self.db.get_template_by_name(data["template_name"])
+        if not template:
+            QMessageBox.critical(self, "Introuvable", "Le template référencé n'est plus disponible.")
+            return
+
+        try:
+            preview = preview_project_from_template(
+                template=template,
+                project_name=data["project_name"],
+                project_path=data["project_path"],
+            )
+        except Exception as exc:  # pragma: no cover - UI feedback
+            QMessageBox.critical(self, "Aperçu impossible", str(exc))
+            return
+
+        dialog = PreviewDialog(data["project_name"], preview, self)
+        dialog.exec()

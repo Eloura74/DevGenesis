@@ -130,6 +130,7 @@ class MainWindow(QMainWindow):
             ("new_project", "Nouveau projet", QKeySequence("Ctrl+N"), lambda: self.tabs.setCurrentWidget(self.new_project_tab)),
             ("generate", "Générer", QKeySequence("Ctrl+G"), self.new_project_tab.generate_project),
             ("focus_logs", "Focus logs", QKeySequence("Ctrl+L"), self.new_project_tab.focus_logs),
+            ("refresh", "Actualiser", QKeySequence("F5"), self._refresh_current_tab),
         ]
 
         for name, text, sequence, callback in actions:
@@ -138,6 +139,18 @@ class MainWindow(QMainWindow):
             action.setObjectName(f"action_{name}")
             action.triggered.connect(callback)
             self.addAction(action)
+
+    def _refresh_current_tab(self) -> None:
+        """Refresh the currently visible tab if it provides a refresh action."""
+        current = self.tabs.currentWidget()
+        if current is self.templates_tab:
+            self.templates_tab.load_templates()
+        elif current is self.history_tab:
+            self.history_tab.load_history()
+        elif current is self.settings_tab:
+            self.settings_tab.refresh_statistics()
+        elif hasattr(current, "refresh"):
+            current.refresh()
 
     def on_generate_project(self, config: Dict[str, Any]):
         """Handle project generation request from NewProjectTab"""

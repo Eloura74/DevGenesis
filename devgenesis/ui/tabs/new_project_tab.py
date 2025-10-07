@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QPushButton,
     QComboBox,
+    QStyle,
 )
 
 from devgenesis.config import PROJECT_TYPES
@@ -137,7 +138,7 @@ class NewProjectTab(QWidget):
         # Nom
         self.project_name_input = QLineEdit()
         self.project_name_input.setPlaceholderText("Nom du projet *")
-        name_label = QLabel("Nom :")
+        name_label = QLabel("&Nom :")
         name_label.setBuddy(self.project_name_input)
         info_form.addRow(name_label, self.project_name_input)
         self._error_labels["name"] = self._create_error_label(info_form)
@@ -152,13 +153,14 @@ class NewProjectTab(QWidget):
         self.project_path_input.setPlaceholderText("Emplacement *")
         default_path = str(Path.home() / "Documents" / "DevGenesis")
         self.project_path_input.setText(default_path)
-        path_browse_btn = QPushButton("📁")
+        path_browse_btn = QPushButton()
         path_browse_btn.setObjectName("secondaryButton")
         path_browse_btn.setFixedWidth(36)
+        path_browse_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
         path_browse_btn.clicked.connect(self.browse_project_path)
         path_h.addWidget(self.project_path_input, 1)
         path_h.addWidget(path_browse_btn, 0)
-        path_label = QLabel("Chemin :")
+        path_label = QLabel("&Chemin :")
         path_label.setBuddy(self.project_path_input)
         info_form.addRow(path_label, path_row)
         self._error_labels["path"] = self._create_error_label(info_form)
@@ -168,7 +170,9 @@ class NewProjectTab(QWidget):
         self.project_desc_input = QTextEdit()
         self.project_desc_input.setPlaceholderText("Description (optionnelle)")
         self.project_desc_input.setFixedHeight(80)
-        info_form.addRow(QLabel("Description :"), self.project_desc_input)
+        desc_label = QLabel("&Description :")
+        desc_label.setBuddy(self.project_desc_input)
+        info_form.addRow(desc_label, self.project_desc_input)
 
         root.addWidget(info_group)
 
@@ -182,7 +186,7 @@ class NewProjectTab(QWidget):
 
         self.template_combo = QComboBox()
         self.template_combo.currentIndexChanged.connect(self.on_template_selected)
-        template_label = QLabel("Sélection :")
+        template_label = QLabel("&Sélection :")
         template_label.setBuddy(self.template_combo)
         template_form.addRow(template_label, self.template_combo)
 
@@ -190,7 +194,9 @@ class NewProjectTab(QWidget):
         self.template_desc_label.setWordWrap(True)
         self.template_desc_label.setStyleSheet("color:#b8b8b8;font-style:italic;font-size:9pt;")
         self.template_desc_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
-        template_form.addRow(QLabel("Résumé :"), self.template_desc_label)
+        template_desc_title = QLabel("&Résumé :")
+        template_desc_title.setBuddy(self.template_desc_label)
+        template_form.addRow(template_desc_title, self.template_desc_label)
 
         self.tech_label = QLabel("")
         self.tech_label.setWordWrap(True)
@@ -448,7 +454,7 @@ class NewProjectTab(QWidget):
         if in_progress:
             self.progress_bar.setRange(0, 0)  # Indeterminate
             self.log_output.clear()
-            self.log("🚀 Démarrage de la génération du projet...", "info")
+            self.log("Démarrage de la génération du projet...", "info")
     
     def on_generation_progress(self, message: str, level: str):
         """Handle generation progress updates"""
@@ -458,9 +464,9 @@ class NewProjectTab(QWidget):
         """Handle generation completion"""
         self.set_generation_in_progress(False)
         if success:
-            self.log("✅ Projet généré avec succès!", "success")
+            self.log("Projet généré avec succès!", "success")
         else:
-            self.log("❌ Échec de la génération du projet", "error")
+            self.log("Échec de la génération du projet", "error")
 
     def focus_logs(self) -> None:
         """Give focus to the log output area."""

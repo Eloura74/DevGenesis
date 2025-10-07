@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Dict, Iterable
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -33,6 +33,7 @@ class PreviewDialog(QDialog):
         layout.setSpacing(10)
 
         layout.addWidget(self._build_structure_group(project_name, preview))
+        layout.addWidget(self._build_gitignore_group(preview))
         layout.addWidget(self._build_commands_group(preview))
         layout.addWidget(self._build_readme_group(preview))
 
@@ -40,6 +41,8 @@ class PreviewDialog(QDialog):
         buttons.rejected.connect(self.reject)
         buttons.accepted.connect(self.accept)
         layout.addWidget(buttons)
+
+        QShortcut(QKeySequence(Qt.Key_Escape), self, self.reject)
 
     def _build_structure_group(self, project_name: str, preview: Dict[str, Iterable]) -> QGroupBox:
         group = QGroupBox("Arborescence générée")
@@ -60,6 +63,18 @@ class PreviewDialog(QDialog):
         tree.expandAll()
         layout = QVBoxLayout(group)
         layout.addWidget(tree)
+        return group
+
+    def _build_gitignore_group(self, preview: Dict[str, Iterable]) -> QGroupBox:
+        group = QGroupBox(".gitignore")
+        content = preview.get("gitignore") or "Le template ne fournit pas de .gitignore."
+        editor = QPlainTextEdit()
+        editor.setReadOnly(True)
+        editor.setPlainText(content)
+        editor.setMinimumHeight(90)
+
+        layout = QVBoxLayout(group)
+        layout.addWidget(editor)
         return group
 
     def _build_commands_group(self, preview: Dict[str, Iterable]) -> QGroupBox:

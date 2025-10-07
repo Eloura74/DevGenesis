@@ -384,6 +384,7 @@ class ProjectGenerator:
 
         files: List[Dict[str, Any]] = []
         readme_preview: Optional[str] = None
+        gitignore_preview: Optional[str] = None
         for file_template in self.config.files:
             file_path = self._render_template(file_template.path, context)
             content = (
@@ -394,6 +395,8 @@ class ProjectGenerator:
             files.append({"path": file_path, "preview": content[:400]})
             if file_path.lower().endswith("readme.md"):
                 readme_preview = content
+            if Path(file_path).name == ".gitignore":
+                gitignore_preview = content
 
         commands: List[str] = []
         if self.config.git_init:
@@ -408,6 +411,7 @@ class ProjectGenerator:
             "files": files,
             "commands": commands,
             "readme": readme_preview,
+            "gitignore": gitignore_preview,
         }
 
 
