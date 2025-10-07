@@ -1,0 +1,45 @@
+[tool.poetry]
+name = "devgenesis"
+version = "1.0.0"
+description = "Générateur universel de projets et environnements de développement"
+authors = ["DevGenesis Team"]
+readme = "README.md"
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+PySide6 = "^6.6.0"
+sqlalchemy = "^2.0.0"
+pydantic = "^2.5.0"
+rich = "^13.7.0"
+jinja2 = "^3.1.2"
+pyyaml = "^6.0.1"
+requests = "^2.31.0"
+gitpython = "^3.1.40"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.3"
+black = "^23.12.0"
+ruff = "^0.1.8"
+mypy = "^1.7.1"
+
+[tool.poetry.scripts]
+devgenesis = "devgenesis.main:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ['py312']
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
