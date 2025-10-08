@@ -1,7 +1,21 @@
 """Settings tab widget"""
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QGroupBox
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QBrush
+from PySide6.QtWidgets import (
+    QApplication,
+    QGroupBox,
+    QHeaderView,
+    QLabel,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
 from devgenesis.database import DatabaseService
+from devgenesis.services.environment import check_environment
 
 
 class SettingsTab(QWidget):
@@ -27,8 +41,27 @@ class SettingsTab(QWidget):
         self.stats_label = QLabel()
         self.stats_label.setWordWrap(True)
         stats_layout.addWidget(self.stats_label)
-        
+
         layout.addWidget(stats_group)
+
+        # Environment checks
+        env_group = QGroupBox("Environnement système")
+        env_layout = QVBoxLayout(env_group)
+
+        self.env_button = QPushButton("Tester l'environnement")
+        self.env_button.clicked.connect(self.run_environment_checks)
+        env_layout.addWidget(self.env_button, alignment=Qt.AlignLeft)
+
+        self.env_result_table = QTableWidget(0, 4)
+        self.env_result_table.setHorizontalHeaderLabels(["Outil", "Statut", "Version", "Suggestion"])
+        self.env_result_table.verticalHeader().setVisible(False)
+        self.env_result_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.env_result_table.setSelectionMode(QTableWidget.NoSelection)
+        self.env_result_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.env_result_table.setMinimumHeight(180)
+        env_layout.addWidget(self.env_result_table)
+
+        layout.addWidget(env_group)
 
         # About
         about_group = QGroupBox("À propos")
@@ -57,7 +90,7 @@ class SettingsTab(QWidget):
         
         # Load initial statistics
         self.refresh_statistics()
-    
+
     def refresh_statistics(self):
         """Refresh statistics display"""
         stats = self.db.get_statistics()
@@ -69,3 +102,26 @@ class SettingsTab(QWidget):
         <b>Projets réussis:</b> {stats['successful_projects']}
         """
         self.stats_label.setText(stats_text)
+
+    def run_environment_checks(self) -> None:
+        """Run environment pre-flight checks and populate the table."""
+        self.env_button.setEnabled(False)
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            results = check_environment()
+        finally:
+            QApplication.restoreOverrideCursor()
+            self.env_button.setEnabled(True)
+
+        self.env_result_table.setRowCount(len(results))
+        for row, result in enumerate(results):
+            status_text = "OK" if result.available else "Manquant"
+            status_item = QTableWidgetItem(status_text)
+            status_item.setTextAlignment(Qt.AlignCenter)
+            status_color = QColor("#3fb950") if result.available else QColor("#f85149")
+            status_item.setForeground(QBrush(status_color))
+
+            self.env_result_table.setItem(row, 0, QTableWidgetItem(result.tool))
+            self.env_result_table.setItem(row, 1, status_item)
+            self.env_result_table.setItem(row, 2, QTableWidgetItem(result.version or "-"))
+            self.env_result_table.setItem(row, 3, QTableWidgetItem(result.suggestion))

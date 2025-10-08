@@ -13,6 +13,34 @@ QWidget {
     font-size: 10pt;
 }
 
+QWidget#headerWidget {
+    background: transparent;
+    border: none;
+}
+
+QWidget#bannerWidget {
+    border-bottom: 2px solid #d4af37;
+}
+
+QWidget#headerOverlay {
+    background: transparent;
+}
+
+QPushButton#themeToggleButton {
+    background: transparent;
+    color: #f0f0f0;
+    border: 1px solid rgba(244, 244, 244, 0.35);
+    border-radius: 18px;
+    padding: 6px 18px;
+    font-weight: 600;
+}
+
+QPushButton#themeToggleButton:hover,
+QPushButton#themeToggleButton:checked {
+    border: 1px solid #d4af37;
+    color: #ffffff;
+}
+
 QPushButton {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                                 stop:0 #c9a961, stop:0.3 #b89850, stop:0.7 #a88840, stop:1 #9a7a35);
@@ -408,6 +436,34 @@ QWidget {
     color: #4c4f69;
     font-family: 'Segoe UI', Arial, sans-serif;
     font-size: 10pt;
+}
+
+QWidget#headerWidget {
+    background: transparent;
+    border: none;
+}
+
+QWidget#bannerWidget {
+    border-bottom: 2px solid #d4af37;
+}
+
+QWidget#headerOverlay {
+    background: transparent;
+}
+
+QPushButton#themeToggleButton {
+    background: transparent;
+    color: #4c4f69;
+    border: 1px solid rgba(76, 79, 105, 0.35);
+    border-radius: 18px;
+    padding: 6px 18px;
+    font-weight: 600;
+}
+
+QPushButton#themeToggleButton:hover,
+QPushButton#themeToggleButton:checked {
+    border: 1px solid #1e66f5;
+    color: #1e66f5;
 }
 
 QPushButton {

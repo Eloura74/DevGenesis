@@ -1,8 +1,17 @@
-"""Main window for DevGenesis application - Refactored version"""
+"""Main window for DevGenesis application - Refactored version."""
 
-from typing import Optional, Dict, Any
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget, QMessageBox
-from PySide6.QtCore import QThread, Signal
+from typing import Any, Dict, Optional
+
+from PySide6.QtCore import QObject, QThread, Signal, Slot
+from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtWidgets import (
+    QMainWindow,
+    QMessageBox,
+    QStyle,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 from devgenesis.config import UI_CONFIG
 from devgenesis.database import DatabaseService
@@ -11,52 +20,40 @@ from devgenesis.ui.styles import get_theme
 
 # Import refactored components
 from devgenesis.ui.components import HeaderWidget
-from devgenesis.ui.tabs import (
-    NewProjectTab,
-    TemplatesTab,
-    CustomTemplateTab,
-    HistoryTab,
-    SettingsTab,
-)
+from devgenesis.ui.tabs import CustomTemplateTab, HistoryTab, NewProjectTab, SettingsTab, TemplatesTab
 
 
-class GeneratorThread(QThread):
-    """Thread for running project generation"""
+class GenerationWorker(QObject):
+    """Worker object responsible for project generation."""
 
-    progress = Signal(str, str)  # message, level
-    finished = Signal(bool)  # success
+    progressed = Signal(str, str)
+    finished = Signal(bool)
 
-    def __init__(
-        self,
-        template: Dict[str, Any],
-        project_name: str,
-        project_path: str,
-        description: str,
-    ):
+    def __init__(self, config: Dict[str, Any]):
         super().__init__()
-        self.template = template
-        self.project_name = project_name
-        self.project_path = project_path
-        self.description = description
+        self._config = config
 
-    def run(self):
-        """Run the generation process"""
+    @Slot()
+    def run(self) -> None:
+        """Execute the generation process in a worker thread."""
         try:
             success = generate_project_from_template(
-                template=self.template,
-                project_name=self.project_name,
-                project_path=self.project_path,
-                description=self.description,
-                progress_callback=self._progress_callback,
+                template=self._config["template"],
+                project_name=self._config["project_name"],
+                project_path=self._config["project_path"],
+                description=self._config.get("description"),
+                git_init=self._config.get("git_init", True),
+                create_venv=self._config.get("create_venv", True),
+                install_deps=self._config.get("install_deps", True),
+                progress_callback=self._handle_progress,
             )
             self.finished.emit(success)
-        except Exception as e:
-            self.progress.emit(f"Erreur: {e}", "error")
+        except Exception as exc:  # pragma: no cover - defensive
+            self.progressed.emit(str(exc), "error")
             self.finished.emit(False)
 
-    def _progress_callback(self, message: str, level: str):
-        """Callback for progress updates"""
-        self.progress.emit(message, level)
+    def _handle_progress(self, message: str, level: str) -> None:
+        self.progressed.emit(message, level)
 
 
 class MainWindow(QMainWindow):
@@ -65,7 +62,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.db = DatabaseService()
-        self.generator_thread: Optional[GeneratorThread] = None
+        self.generator_thread: Optional[QThread] = None
+        self.generation_worker: Optional[GenerationWorker] = None
         self.theme = "dark"
 
         self.init_ui()
@@ -115,18 +113,50 @@ class MainWindow(QMainWindow):
         self.settings_tab = SettingsTab(self.db)
 
         # Add tabs to tab widget
-        self.tabs.addTab(self.new_project_tab, "🚀 Nouveau Projet")
-        self.tabs.addTab(self.templates_tab, "📦 Templates")
-        self.tabs.addTab(self.custom_template_tab, "✨ Créer Template")
-        self.tabs.addTab(self.history_tab, "📜 Historique")
-        self.tabs.addTab(self.settings_tab, "⚙️ Paramètres")
+        self._add_tab(self.new_project_tab, QStyle.SP_FileDialogNewFolder, "Nouveau projet")
+        self._add_tab(self.templates_tab, QStyle.SP_FileDialogListView, "Templates")
+        self._add_tab(self.custom_template_tab, QStyle.SP_FileDialogDetailedView, "Créer template")
+        self._add_tab(self.history_tab, QStyle.SP_FileDialogInfoView, "Historique")
+        self._add_tab(self.settings_tab, QStyle.SP_FileDialogContentsView, "Paramètres")
+
+        self._register_shortcuts()
+
+    def _add_tab(self, widget: QWidget, icon_name: QStyle.StandardPixmap, label: str) -> None:
+        icon = self.style().standardIcon(icon_name)
+        self.tabs.addTab(widget, icon, label)
+
+    def _register_shortcuts(self) -> None:
+        actions = [
+            ("new_project", "Nouveau projet", QKeySequence("Ctrl+N"), lambda: self.tabs.setCurrentWidget(self.new_project_tab)),
+            ("generate", "Générer", QKeySequence("Ctrl+G"), self.new_project_tab.generate_project),
+            ("focus_logs", "Focus logs", QKeySequence("Ctrl+L"), self.new_project_tab.focus_logs),
+            ("refresh", "Actualiser", QKeySequence("F5"), self._refresh_current_tab),
+        ]
+
+        for name, text, sequence, callback in actions:
+            action = QAction(text, self)
+            action.setShortcut(sequence)
+            action.setObjectName(f"action_{name}")
+            action.triggered.connect(callback)
+            self.addAction(action)
+
+    def _refresh_current_tab(self) -> None:
+        """Refresh the currently visible tab if it provides a refresh action."""
+        current = self.tabs.currentWidget()
+        if current is self.templates_tab:
+            self.templates_tab.load_templates()
+        elif current is self.history_tab:
+            self.history_tab.load_history()
+        elif current is self.settings_tab:
+            self.settings_tab.refresh_statistics()
+        elif hasattr(current, "refresh"):
+            current.refresh()
 
     def on_generate_project(self, config: Dict[str, Any]):
         """Handle project generation request from NewProjectTab"""
         template = config.get("template")
         project_name = config.get("project_name")
         project_path = config.get("project_path")
-        description = config.get("description", "")
 
         if not template or not project_name or not project_path:
             QMessageBox.warning(self, "Attention", "Veuillez remplir tous les champs requis")
@@ -136,23 +166,32 @@ class MainWindow(QMainWindow):
         self.new_project_tab.set_generation_in_progress(True)
 
         # Start generation in thread
-        self.generator_thread = GeneratorThread(
-            template=template,
-            project_name=project_name,
-            project_path=project_path,
-            description=description
-        )
-        self.generator_thread.progress.connect(self.new_project_tab.on_generation_progress)
-        self.generator_thread.finished.connect(self._on_generation_complete)
+        self.generator_thread = QThread(self)
+        self.generation_worker = GenerationWorker(config)
+        self.generation_worker.moveToThread(self.generator_thread)
+
+        self.generator_thread.started.connect(self.generation_worker.run)
+        self.generation_worker.progressed.connect(self.new_project_tab.on_generation_progress)
+        self.generation_worker.finished.connect(self._on_generation_complete)
+        self.generation_worker.finished.connect(self.generator_thread.quit)
+        self.generator_thread.finished.connect(self._cleanup_generation_thread)
         self.generator_thread.start()
-    
+
     def _on_generation_complete(self, success: bool):
         """Handle generation completion with additional actions"""
         self.new_project_tab.on_generation_finished(success)
-        
+
         if success:
             # Reload history tab
             self.history_tab.load_history()
+
+    def _cleanup_generation_thread(self) -> None:
+        if self.generation_worker:
+            self.generation_worker.deleteLater()
+            self.generation_worker = None
+        if self.generator_thread:
+            self.generator_thread.deleteLater()
+            self.generator_thread = None
 
     def toggle_theme(self):
         """Toggle between light and dark theme"""
