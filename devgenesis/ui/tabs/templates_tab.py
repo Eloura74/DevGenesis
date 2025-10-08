@@ -13,12 +13,12 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QInputDialog,
 )
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QStyle
+from PySide6.QtCore import Qt, Signal, QSize
 
 from devgenesis.database import DatabaseService
 from devgenesis.generator import preview_project_from_template
 from devgenesis.ui.dialogs.preview_dialog import PreviewDialog
+from devgenesis.ui.icons import load_icon
 
 
 class TemplatesTab(QWidget):
@@ -34,6 +34,8 @@ class TemplatesTab(QWidget):
     def _init_ui(self):
         """Initialize the templates tab UI"""
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
 
         label = QLabel("Gestion des Templates")
         label.setObjectName("sectionLabel")
@@ -41,19 +43,25 @@ class TemplatesTab(QWidget):
 
         # Templates list
         self.templates_list = QListWidget()
+        self.templates_list.setObjectName("templatesList")
+        self.templates_list.setSpacing(8)
         layout.addWidget(self.templates_list)
 
         # Buttons
         btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(12)
+        icon_size = QSize(22, 22)
         refresh_btn = QPushButton("Actualiser")
         refresh_btn.setObjectName("secondaryButton")
-        refresh_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload))
+        refresh_btn.setIcon(load_icon("refresh"))
+        refresh_btn.setIconSize(icon_size)
         refresh_btn.clicked.connect(self._on_refresh)
         btn_layout.addWidget(refresh_btn)
 
         preview_btn = QPushButton("Aperçu")
         preview_btn.setObjectName("secondaryButton")
-        preview_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogInfoView))
+        preview_btn.setIcon(load_icon("preview"))
+        preview_btn.setIconSize(icon_size)
         preview_btn.clicked.connect(self._on_preview)
         btn_layout.addWidget(preview_btn)
         btn_layout.addStretch()

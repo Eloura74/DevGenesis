@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtWidgets import (
     QFileDialog,
     QFormLayout,
@@ -29,13 +29,13 @@ from PySide6.QtWidgets import (
     QWidget,
     QPushButton,
     QComboBox,
-    QStyle,
 )
 
 from devgenesis.config import PROJECT_TYPES
 from devgenesis.database import DatabaseService
 from devgenesis.generator import preview_project_from_template
 from devgenesis.ui.dialogs.preview_dialog import PreviewDialog
+from devgenesis.ui.icons import load_icon
 
 
 class NewProjectTab(QWidget):
@@ -54,8 +54,8 @@ class NewProjectTab(QWidget):
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setSpacing(15)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(24)
+        layout.setContentsMargins(24, 24, 24, 24)
 
         subtitle = QLabel("Générateur universel de projets et environnements de développement")
         subtitle.setObjectName("subtitleLabel")
@@ -63,11 +63,11 @@ class NewProjectTab(QWidget):
         layout.addWidget(subtitle)
 
         content_layout = QHBoxLayout()
-        content_layout.setSpacing(15)
+        content_layout.setSpacing(24)
 
         # Gauche
         left_panel = self._create_project_types_panel()
-        left_panel.setFixedWidth(280)  # largeur stable
+        left_panel.setFixedWidth(304)
         content_layout.addWidget(left_panel)
 
         # Droite avec scroll
@@ -75,6 +75,7 @@ class NewProjectTab(QWidget):
         right_scroll.setWidgetResizable(True)
         self._config_panel = self._create_project_config_panel()
         right_scroll.setWidget(self._config_panel)
+        right_scroll.setObjectName("configurationScroll")
         content_layout.addWidget(right_scroll, 1)
 
         layout.addLayout(content_layout)
@@ -82,34 +83,27 @@ class NewProjectTab(QWidget):
     def _create_project_types_panel(self) -> QWidget:
         """Create project types selection panel"""
         widget = QWidget()
+        widget.setObjectName("projectTypePanel")
         layout = QVBoxLayout(widget)
-        layout.setContentsMargins(5, 5, 5, 5)
-        layout.setSpacing(10)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(16)
 
         # Section label with background
         label = QLabel("Type de projet")
         label.setObjectName("sectionLabel")
-        label.setStyleSheet("""
-            QLabel {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                                            stop:0 #2a2a2a, stop:0.5 #3a3a3a, stop:1 #2a2a2a);
-                border: 1px solid #b89850;
-                border-radius: 8px;
-                padding: 10px;
-                font-size: 12pt;
-                font-weight: 700;
-                color: #d4af37;
-            }
-        """)
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(label)
 
         # Project types list
         self.project_types_list = QListWidget()
-        self.project_types_list.setSpacing(5)
+        self.project_types_list.setObjectName("projectTypeList")
+        self.project_types_list.setSpacing(8)
+        self.project_types_list.setIconSize(QSize(32, 32))
+        self.project_types_list.setAlternatingRowColors(False)
 
         for key, project_type in PROJECT_TYPES.items():
-            item = QListWidgetItem(f"{project_type['icon']}  {project_type['name']}")
+            item = QListWidgetItem(project_type["name"])
+            item.setIcon(load_icon(project_type["icon"], size=32))
             item.setData(Qt.ItemDataRole.UserRole, key)
             item.setToolTip(project_type["description"])
             self.project_types_list.addItem(item)
@@ -123,17 +117,17 @@ class NewProjectTab(QWidget):
     def _create_project_config_panel(self) -> QWidget:
         widget = QWidget()
         root = QVBoxLayout(widget)
-        root.setSpacing(12)
-        root.setContentsMargins(8, 8, 8, 8)
+        root.setSpacing(16)
+        root.setContentsMargins(16, 16, 16, 16)
 
         # ===== Informations du projet =====
         info_group = QGroupBox("Informations du projet")
         info_form = QFormLayout(info_group)
         info_form.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
         info_form.setFormAlignment(Qt.AlignTop)
-        info_form.setHorizontalSpacing(10)
-        info_form.setVerticalSpacing(8)
-        info_form.setContentsMargins(16, 12, 16, 12)
+        info_form.setHorizontalSpacing(16)
+        info_form.setVerticalSpacing(12)
+        info_form.setContentsMargins(16, 16, 16, 16)
 
         # Nom
         self.project_name_input = QLineEdit()
@@ -154,9 +148,10 @@ class NewProjectTab(QWidget):
         default_path = str(Path.home() / "Documents" / "DevGenesis")
         self.project_path_input.setText(default_path)
         path_browse_btn = QPushButton()
-        path_browse_btn.setObjectName("secondaryButton")
-        path_browse_btn.setFixedWidth(36)
-        path_browse_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
+        path_browse_btn.setObjectName("secondaryIconButton")
+        path_browse_btn.setFixedWidth(40)
+        path_browse_btn.setIcon(load_icon("folder_open"))
+        path_browse_btn.setIconSize(QSize(20, 20))
         path_browse_btn.clicked.connect(self.browse_project_path)
         path_h.addWidget(self.project_path_input, 1)
         path_h.addWidget(path_browse_btn, 0)
@@ -192,7 +187,7 @@ class NewProjectTab(QWidget):
 
         self.template_desc_label = QLabel("")
         self.template_desc_label.setWordWrap(True)
-        self.template_desc_label.setStyleSheet("color:#b8b8b8;font-style:italic;font-size:9pt;")
+        self.template_desc_label.setStyleSheet("color: rgba(201,214,235,0.75); font-style: italic; font-size: 9pt;")
         self.template_desc_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         template_desc_title = QLabel("&Résumé :")
         template_desc_title.setBuddy(self.template_desc_label)
@@ -200,7 +195,7 @@ class NewProjectTab(QWidget):
 
         self.tech_label = QLabel("")
         self.tech_label.setWordWrap(True)
-        self.tech_label.setStyleSheet("color:#d4af37;font-size:9pt;font-weight:600;")
+        self.tech_label.setStyleSheet("color:#ffdf7e;font-size:9pt;font-weight:600; letter-spacing:0.3px;")
         template_form.addRow(QLabel("Recommandé :"), self.tech_label)
 
         self._error_labels["template"] = self._create_error_label(template_form)
@@ -211,9 +206,9 @@ class NewProjectTab(QWidget):
         options_group = QGroupBox("Options")
         options_group.setContentsMargins(0, 0, 0, 0)
         options_grid = QGridLayout(options_group)
-        options_grid.setContentsMargins(16, 12, 16, 12)
-        options_grid.setHorizontalSpacing(20)
-        options_grid.setVerticalSpacing(6)
+        options_grid.setContentsMargins(16, 16, 16, 16)
+        options_grid.setHorizontalSpacing(24)
+        options_grid.setVerticalSpacing(12)
 
         self.git_init_checkbox = QCheckBox("Initialiser Git")
         self.git_init_checkbox.setChecked(True)
@@ -230,24 +225,32 @@ class NewProjectTab(QWidget):
 
         # ===== Actions & logs =====
         buttons_layout = QHBoxLayout()
+        icon_size = QSize(24, 24)
+
         self.preview_btn = QPushButton("Aperçu")
         self.preview_btn.setObjectName("secondaryButton")
+        self.preview_btn.setIcon(load_icon("preview"))
+        self.preview_btn.setIconSize(icon_size)
         self.preview_btn.clicked.connect(self.preview_generation)
         self.preview_btn.setEnabled(False)
         buttons_layout.addWidget(self.preview_btn)
 
         self.generate_btn = QPushButton("Générer le projet")
         self.generate_btn.setMinimumHeight(42)
+        self.generate_btn.setIcon(load_icon("new_project"))
+        self.generate_btn.setIconSize(icon_size)
         self.generate_btn.clicked.connect(self.generate_project)
         buttons_layout.addWidget(self.generate_btn, 1)
         root.addLayout(buttons_layout)
 
         self.progress_bar = QProgressBar()
+        self.progress_bar.setObjectName("generationProgress")
         self.progress_bar.setVisible(False)
         self.progress_bar.setTextVisible(False)
         root.addWidget(self.progress_bar)
 
         self.log_output = QTextEdit()
+        self.log_output.setObjectName("logOutput")
         self.log_output.setReadOnly(True)
         self.log_output.setMinimumHeight(140)
         self.log_output.setPlaceholderText("Les logs de génération apparaîtront ici…")

@@ -2,7 +2,7 @@
 
 import shutil
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QSize
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
@@ -13,13 +13,13 @@ from PySide6.QtWidgets import (
     QPushButton,
     QVBoxLayout,
     QWidget,
-    QStyle,
 )
 
 from devgenesis.database import DatabaseService
 from devgenesis.generator import preview_project_from_template
 from devgenesis.logger import LOG_FILE
 from devgenesis.ui.dialogs.preview_dialog import PreviewDialog
+from devgenesis.ui.icons import load_icon
 
 
 class HistoryTab(QWidget):
@@ -33,6 +33,8 @@ class HistoryTab(QWidget):
     def _init_ui(self):
         """Initialize the history tab UI"""
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
 
         label = QLabel("Historique des projets générés")
         label.setObjectName("sectionLabel")
@@ -40,31 +42,39 @@ class HistoryTab(QWidget):
 
         # History list
         self.history_list = QListWidget()
+        self.history_list.setObjectName("historyList")
         layout.addWidget(self.history_list)
 
         # Buttons
         btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(12)
+        icon_size = QSize(22, 22)
+
         refresh_btn = QPushButton("Actualiser")
         refresh_btn.setObjectName("secondaryButton")
-        refresh_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload))
+        refresh_btn.setIcon(load_icon("refresh"))
+        refresh_btn.setIconSize(icon_size)
         refresh_btn.clicked.connect(self.load_history)
         btn_layout.addWidget(refresh_btn)
 
         preview_btn = QPushButton("Aperçu")
         preview_btn.setObjectName("secondaryButton")
-        preview_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogInfoView))
+        preview_btn.setIcon(load_icon("preview"))
+        preview_btn.setIconSize(icon_size)
         preview_btn.clicked.connect(self.preview_selection)
         btn_layout.addWidget(preview_btn)
 
         export_btn = QPushButton("Exporter les logs")
         export_btn.setObjectName("secondaryButton")
-        export_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton))
+        export_btn.setIcon(load_icon("export"))
+        export_btn.setIconSize(icon_size)
         export_btn.clicked.connect(self.export_logs)
         btn_layout.addWidget(export_btn)
 
         clear_btn = QPushButton("Effacer l'historique")
         clear_btn.setObjectName("dangerButton")
-        clear_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TrashIcon))
+        clear_btn.setIcon(load_icon("delete"))
+        clear_btn.setIconSize(icon_size)
         clear_btn.clicked.connect(self.clear_history)
         btn_layout.addWidget(clear_btn)
 

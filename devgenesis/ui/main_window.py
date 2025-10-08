@@ -7,7 +7,6 @@ from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
-    QStyle,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -17,6 +16,7 @@ from devgenesis.config import UI_CONFIG
 from devgenesis.database import DatabaseService
 from devgenesis.generator import generate_project_from_template
 from devgenesis.ui.styles import get_theme
+from devgenesis.ui.icons import load_icon
 
 # Import refactored components
 from devgenesis.ui.components import HeaderWidget
@@ -94,8 +94,8 @@ class MainWindow(QMainWindow):
         # Content container with padding
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(20, 15, 20, 20)
-        content_layout.setSpacing(15)
+        content_layout.setContentsMargins(24, 24, 24, 24)
+        content_layout.setSpacing(16)
 
         # Tab widget
         self.tabs = QTabWidget()
@@ -113,16 +113,16 @@ class MainWindow(QMainWindow):
         self.settings_tab = SettingsTab(self.db)
 
         # Add tabs to tab widget
-        self._add_tab(self.new_project_tab, QStyle.SP_FileDialogNewFolder, "Nouveau projet")
-        self._add_tab(self.templates_tab, QStyle.SP_FileDialogListView, "Templates")
-        self._add_tab(self.custom_template_tab, QStyle.SP_FileDialogDetailedView, "Créer template")
-        self._add_tab(self.history_tab, QStyle.SP_FileDialogInfoView, "Historique")
-        self._add_tab(self.settings_tab, QStyle.SP_FileDialogContentsView, "Paramètres")
+        self._add_tab(self.new_project_tab, "new_project", "Nouveau projet")
+        self._add_tab(self.templates_tab, "templates", "Templates")
+        self._add_tab(self.custom_template_tab, "custom_template", "Créer template")
+        self._add_tab(self.history_tab, "history", "Historique")
+        self._add_tab(self.settings_tab, "settings", "Paramètres")
 
         self._register_shortcuts()
 
-    def _add_tab(self, widget: QWidget, icon_name: QStyle.StandardPixmap, label: str) -> None:
-        icon = self.style().standardIcon(icon_name)
+    def _add_tab(self, widget: QWidget, icon_name: str, label: str) -> None:
+        icon = load_icon(icon_name)
         self.tabs.addTab(widget, icon, label)
 
     def _register_shortcuts(self) -> None:

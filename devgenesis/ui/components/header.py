@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QPainter, QPixmap
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -12,6 +12,8 @@ from PySide6.QtWidgets import (
     QPushButton,
     QWidget,
 )
+
+from devgenesis.ui.icons import load_icon
 
 
 class BannerWidget(QWidget):
@@ -70,35 +72,43 @@ class HeaderWidget(QWidget):
         self._overlay.setObjectName("headerOverlay")
 
         overlay_layout = QHBoxLayout(self._overlay)
-        overlay_layout.setContentsMargins(24, 10, 24, 10)
-        overlay_layout.setSpacing(12)
+        overlay_layout.setContentsMargins(0, 0, 0, 0)
+        overlay_layout.setSpacing(0)
+
+        content_container = QWidget(self._overlay)
+        content_container.setObjectName("headerContent")
+        content_layout = QHBoxLayout(content_container)
+        content_layout.setContentsMargins(24, 16, 24, 16)
+        content_layout.setSpacing(16)
+        overlay_layout.addWidget(content_container)
 
         if logo_path.exists():
             logo_pixmap = QPixmap(str(logo_path))
             if not logo_pixmap.isNull():
-                logo_label = QLabel(self._overlay)
-                logo_label.setStyleSheet("background: transparent;")
+                logo_label = QLabel(content_container)
+                logo_label.setObjectName("logoLabel")
                 scaled = logo_pixmap.scaledToHeight(
                     80, Qt.TransformationMode.SmoothTransformation
                 )
                 logo_label.setPixmap(scaled)
                 self._logo_label = logo_label
-                overlay_layout.addWidget(
+                content_layout.addWidget(
                     logo_label, alignment=Qt.AlignmentFlag.AlignTop
                 )
             else:
-                self._add_fallback_title(overlay_layout)
+                self._add_fallback_title(content_layout)
         else:
-            self._add_fallback_title(overlay_layout)
+            self._add_fallback_title(content_layout)
 
-        overlay_layout.addStretch()
+        content_layout.addStretch()
 
-        self.theme_btn = QPushButton(self._overlay)
+        self.theme_btn = QPushButton(content_container)
         self.theme_btn.setObjectName("themeToggleButton")
         self.theme_btn.setCheckable(True)
         self.theme_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.theme_btn.clicked.connect(self._on_theme_button_clicked)
-        overlay_layout.addWidget(
+        self.theme_btn.setIconSize(QSize(20, 20))
+        content_layout.addWidget(
             self.theme_btn, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight
         )
 
@@ -125,16 +135,19 @@ class HeaderWidget(QWidget):
         self._refresh_theme_button_label(is_light)
 
     def _add_fallback_title(self, layout: QHBoxLayout) -> None:
-        title = QLabel("DevGenesis", self._overlay)
+        parent = layout.parentWidget() or self._overlay
+        title = QLabel("DevGenesis", parent)
         title.setObjectName("titleLabel")
         self._logo_label = title
         layout.addWidget(title, alignment=Qt.AlignmentFlag.AlignTop)
 
     def _refresh_theme_button_label(self, is_light: bool) -> None:
         if is_light:
-            self.theme_btn.setText("☀️ Mode Sombre")
+            self.theme_btn.setText("Mode Sombre")
+            self.theme_btn.setIcon(load_icon("sun", size=20))
         else:
-            self.theme_btn.setText("🌙 Mode Clair")
+            self.theme_btn.setText("Mode Clair")
+            self.theme_btn.setIcon(load_icon("moon", size=20))
 
     def _on_theme_button_clicked(self) -> None:
         is_light = self.theme_btn.isChecked()

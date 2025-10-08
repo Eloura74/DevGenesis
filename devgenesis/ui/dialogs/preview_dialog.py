@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from devgenesis.ui.icons import load_icon
 
 class PreviewDialog(QDialog):
     """Simple dialog showing the preview of the generation plan."""
@@ -27,10 +28,10 @@ class PreviewDialog(QDialog):
     def __init__(self, project_name: str, preview: Dict[str, Iterable], parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"Aperçu – {project_name}")
-        self.resize(760, 520)
+        self.resize(780, 540)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(10)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
 
         layout.addWidget(self._build_structure_group(project_name, preview))
         layout.addWidget(self._build_gitignore_group(preview))
@@ -90,6 +91,8 @@ class PreviewDialog(QDialog):
         script_edit.setMinimumHeight(110)
 
         copy_btn = QPushButton("Copier le script")
+        copy_btn.setObjectName("secondaryButton")
+        copy_btn.setIcon(load_icon("copy"))
         copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(script))
 
         layout.addWidget(script_edit, 0, 0, 1, 2)

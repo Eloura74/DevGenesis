@@ -1,6 +1,6 @@
 """Settings tab widget"""
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QColor, QBrush
 from PySide6.QtWidgets import (
     QApplication,
@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 
 from devgenesis.database import DatabaseService
 from devgenesis.services.environment import check_environment
+from devgenesis.ui.icons import load_icon
 
 
 class SettingsTab(QWidget):
@@ -29,6 +30,8 @@ class SettingsTab(QWidget):
     def _init_ui(self):
         """Initialize the settings tab UI"""
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
 
         label = QLabel("Paramètres")
         label.setObjectName("sectionLabel")
@@ -37,6 +40,7 @@ class SettingsTab(QWidget):
         # Statistics
         stats_group = QGroupBox("Statistiques")
         stats_layout = QVBoxLayout(stats_group)
+        stats_layout.setSpacing(12)
 
         self.stats_label = QLabel()
         self.stats_label.setWordWrap(True)
@@ -47,8 +51,12 @@ class SettingsTab(QWidget):
         # Environment checks
         env_group = QGroupBox("Environnement système")
         env_layout = QVBoxLayout(env_group)
+        env_layout.setSpacing(12)
 
         self.env_button = QPushButton("Tester l'environnement")
+        self.env_button.setObjectName("secondaryButton")
+        self.env_button.setIcon(load_icon("refresh"))
+        self.env_button.setIconSize(QSize(22, 22))
         self.env_button.clicked.connect(self.run_environment_checks)
         env_layout.addWidget(self.env_button, alignment=Qt.AlignLeft)
 
@@ -66,6 +74,7 @@ class SettingsTab(QWidget):
         # About
         about_group = QGroupBox("À propos")
         about_layout = QVBoxLayout(about_group)
+        about_layout.setSpacing(12)
 
         about_text = """
         <h3>DevGenesis v1.0.0</h3>
@@ -118,7 +127,7 @@ class SettingsTab(QWidget):
             status_text = "OK" if result.available else "Manquant"
             status_item = QTableWidgetItem(status_text)
             status_item.setTextAlignment(Qt.AlignCenter)
-            status_color = QColor("#3fb950") if result.available else QColor("#f85149")
+            status_color = QColor("#7bd88f") if result.available else QColor("#ff6b6b")
             status_item.setForeground(QBrush(status_color))
 
             self.env_result_table.setItem(row, 0, QTableWidgetItem(result.tool))
