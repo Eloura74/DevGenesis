@@ -20,7 +20,7 @@ def main():
     app.setOrganizationName("DevGenesis")
     app.setApplicationVersion("1.0.0")
 
-    # Create and show main window
+    # Create and show main window (video overlay will show automatically)
     window = MainWindow()
     window.show()
 
