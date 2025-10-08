@@ -2,12 +2,25 @@
 
 from pathlib import Path
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QLineEdit, QTextEdit, QComboBox, QListWidget, QListWidgetItem,
-    QGroupBox, QScrollArea, QMessageBox, QFileDialog, QInputDialog
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QLineEdit,
+    QTextEdit,
+    QComboBox,
+    QListWidget,
+    QListWidgetItem,
+    QGroupBox,
+    QScrollArea,
+    QMessageBox,
+    QFileDialog,
+    QInputDialog,
 )
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, QSize
 from devgenesis.custom_config import CustomProjectConfig, get_technology_suggestions
+from devgenesis.ui.icons import load_icon
 
 
 class CustomTemplateTab(QWidget):
@@ -23,17 +36,21 @@ class CustomTemplateTab(QWidget):
     def _init_ui(self):
         """Initialize the custom template tab UI"""
         layout = QVBoxLayout(self)
-        
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+
         label = QLabel("Créer un Template Personnalisé")
         label.setObjectName("sectionLabel")
         layout.addWidget(label)
-        
+
         # Scroll area
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll_content = QWidget()
         scroll_layout = QVBoxLayout(scroll_content)
-        
+        scroll_layout.setSpacing(16)
+        scroll_layout.setContentsMargins(8, 8, 8, 8)
+
         # Template info
         info_group = QGroupBox("Informations du Template")
         info_layout = QVBoxLayout(info_group)
@@ -71,7 +88,8 @@ class CustomTemplateTab(QWidget):
         
         # Technology list
         self.tech_suggestions_list = QListWidget()
-        self.tech_suggestions_list.setMaximumHeight(150)
+        self.tech_suggestions_list.setObjectName("techSuggestionsList")
+        self.tech_suggestions_list.setMaximumHeight(160)
         tech_layout.addWidget(QLabel("Suggestions:"))
         tech_layout.addWidget(self.tech_suggestions_list)
         
@@ -123,18 +141,26 @@ class CustomTemplateTab(QWidget):
         
         # Buttons
         btn_layout = QHBoxLayout()
-        
-        save_btn = QPushButton("💾 Sauvegarder Template")
+        btn_layout.setSpacing(12)
+        icon_size = QSize(22, 22)
+
+        save_btn = QPushButton("Sauvegarder le template")
         save_btn.clicked.connect(self.save_custom_template)
+        save_btn.setIcon(load_icon("save"))
+        save_btn.setIconSize(icon_size)
         btn_layout.addWidget(save_btn)
-        
-        import_btn = QPushButton("📥 Importer")
+
+        import_btn = QPushButton("Importer")
         import_btn.setObjectName("secondaryButton")
+        import_btn.setIcon(load_icon("import"))
+        import_btn.setIconSize(icon_size)
         import_btn.clicked.connect(self.import_custom_template)
         btn_layout.addWidget(import_btn)
-        
-        export_btn = QPushButton("📤 Exporter")
+
+        export_btn = QPushButton("Exporter")
         export_btn.setObjectName("secondaryButton")
+        export_btn.setIcon(load_icon("export"))
+        export_btn.setIconSize(icon_size)
         export_btn.clicked.connect(self.export_custom_template)
         btn_layout.addWidget(export_btn)
         
